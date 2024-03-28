@@ -1,0 +1,2 @@
+#define PDAINJECTOR_API __declspec(dllexport)
+#define PDAINJECTOR_API __declspec(dllimport)
