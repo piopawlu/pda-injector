@@ -1,0 +1,1 @@
+cl cpatch.cpp /std:c++17 /O1 /MT /link /DEBUG:NONE /machine:x86 /subsystem:console
