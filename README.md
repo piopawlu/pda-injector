@@ -27,3 +27,22 @@ This is a beta release and there's at least one known issue and some limitations
 You can either build everything by yourself (Visual Studio Community Edition project is a part of this repo), or you can simply download a prebuilt binary from the Releases and follow the instructions in the README.txt
 
 Go to [PDA Injector Releases](https://github.com/piopawlu/pda-injector/releases "PDA Injector Releases")
+
+# Configuration
+
+You can now configure some of the PDA Injector behaviour by editing the pda.ini file. 
+
+By default the following config is used:
+
+```
+[app]
+window=XCSoar
+
+[pda]
+enabled=true
+page=2
+swap_colours=true
+show_waiting_screen=true
+```
+
+The swap_colours option is needed to swap red and blue channels in the resulting bitmap. If you don't care about colours not matching you can disable that and potentially gain some performance on slower computers.
