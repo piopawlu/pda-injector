@@ -14,10 +14,13 @@ Currently only Condor2 2.2.0 is supported. I will try to maintain it when a new 
 
 # Known issues
 
-This is a beta release and while there are no known issues, there are some limitations:
-1. No effort has been made to provide any sort of control over the XCSoar at this point.
+This is a beta release and there's at least one known issue and some limitations:
 
-2. Symbols on the XCSoar screen may appear too small and be difficult to read. This can be solved by increasing the text size and DPI setting inside XCSoar.
+1. Taking in-game screenshot (S key) casues the game to crash at the moment (2024/03/30)
+
+2. No effort has been made to provide any sort of control over the XCSoar at this point.
+
+3. Symbols on the XCSoar screen may appear too small and be difficult to read. This can be solved by increasing the text size and DPI setting inside XCSoar.
 
 # Installation
 
