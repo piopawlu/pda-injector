@@ -16,7 +16,7 @@ Currently only Condor2 2.2.0 is supported. I will try to maintain it when a new 
 
 This is a beta release and there's at least one known issue and some limitations:
 
-1. Taking in-game screenshot (S key) casues the game to crash at the moment (2024/03/30)
+~~1. Taking in-game screenshot (S key) casues the game to crash at the moment (2024/03/30)~~ (Solved in Beta 3)
 
 2. No effort has been made to provide any sort of control over the XCSoar at this point.
 
