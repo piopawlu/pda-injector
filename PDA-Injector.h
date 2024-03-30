@@ -21,12 +21,15 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110 - 1301, USA.
 
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
+#include <string>
 
 struct PDAInjectorOptions {
 	int  page = 2; // 0 - map, 1 - MC, 2 - nav , 3 - thermal/wind
 	bool enabled = true;
 	bool show_waiting_screen = true;
 	bool swap_colours = true; //XCSoar returns data with red and blue channels swapped...
+
+	std::string window = "XCSoar";
 };
 
 #define PDAINJECTOR_API __declspec(dllexport) 

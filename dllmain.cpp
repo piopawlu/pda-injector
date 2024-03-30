@@ -21,12 +21,33 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110 - 1301, USA.
 #include "resource.h"
 #include "PDA-Injector.h"
 
+#include "inih/cpp/INIReader.h"
+
 
 HBITMAP waitingForXCSoarBMP = NULL;
 HBITMAP backgroundBMP = NULL;
 HBITMAP captureBMP = NULL;
 
 PDAInjectorOptions pdaOptions;
+
+
+BOOL LoadSettings(PDAInjectorOptions& settings, std::string ini_path)
+{
+    INIReader reader(ini_path);
+
+    if (reader.ParseError() < 0) {
+        return FALSE;
+    }
+
+    settings.enabled = reader.GetBoolean("pda", "enabled", true);
+    settings.page = reader.GetInteger("pda", "page", 2);
+    settings.swap_colours = reader.GetBoolean("pda", "swap_colours", true);
+    settings.show_waiting_screen = reader.GetBoolean("pda", "show_waiting_screen", true);
+
+    settings.window = reader.GetString("app", "window", "XCSoar");
+
+    return TRUE;
+}
 
 BOOL APIENTRY DllMain( HMODULE hModule,
                        DWORD  ul_reason_for_call,
@@ -39,6 +60,8 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         waitingForXCSoarBMP = LoadBitmap(hModule, MAKEINTRESOURCE(IDB_BITMAP1));
         backgroundBMP = LoadBitmap(hModule, MAKEINTRESOURCE(IDB_BITMAP2));
         captureBMP = LoadBitmap(hModule, MAKEINTRESOURCE(IDB_BITMAP3));
+        
+        LoadSettings(pdaOptions, "pda.ini");
         break;
     case DLL_THREAD_ATTACH:
     case DLL_THREAD_DETACH:

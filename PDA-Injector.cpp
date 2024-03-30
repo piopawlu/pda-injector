@@ -126,7 +126,7 @@ PDAINJECTOR_API BOOL __stdcall PDAInject(HDC hPdaDC, int page)
     if (page == pdaOptions.page && pdaOptions.enabled)
     {
         if (hXCSoarWnd == NULL) {
-            hXCSoarWnd = FindWindowA(NULL, "XCSoar");
+            hXCSoarWnd = FindWindowA(NULL, pdaOptions.window.c_str());
         }
 
         if (hXCSoarWnd != NULL) {
