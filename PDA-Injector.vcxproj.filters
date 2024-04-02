@@ -41,6 +41,9 @@
     <ClCompile Include="inih\cpp\INIReader.cpp">
       <Filter>Source Files\inih</Filter>
     </ClCompile>
+    <ClCompile Include="dll_proxy.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="PDA-Injector.rc">

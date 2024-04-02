@@ -30,6 +30,7 @@ HBITMAP captureBMP = NULL;
 
 PDAInjectorOptions pdaOptions;
 
+extern HMODULE hTrueDX11_43Module;
 
 BOOL LoadSettings(PDAInjectorOptions& settings, std::string ini_path)
 {
@@ -39,12 +40,36 @@ BOOL LoadSettings(PDAInjectorOptions& settings, std::string ini_path)
         return FALSE;
     }
 
+    // [pda]
     settings.enabled = reader.GetBoolean("pda", "enabled", true);
     settings.page = reader.GetInteger("pda", "page", 2);
     settings.swap_colours = reader.GetBoolean("pda", "swap_colours", true);
     settings.show_waiting_screen = reader.GetBoolean("pda", "show_waiting_screen", true);
 
+    // [app]
     settings.window = reader.GetString("app", "window", "XCSoar");
+    settings.pass_input = reader.GetBoolean("app", "pass_input", false);
+    settings.pass_all_with_shift = reader.GetBoolean("app", "pass_all_with_shift", false);
+
+    for (int i = 0; i < 32; i++) {
+        std::string option_name = "pass_key_" + std::to_string(i + 1);
+        const auto vk_code_str = reader.GetString("app", option_name, "");
+        if (vk_code_str.empty()) {
+            break;
+        }
+
+        char* map_to = nullptr;
+        const auto vk_code = strtoul(vk_code_str.c_str(), &map_to, 16);
+        if (vk_code > 0 && vk_code < 256) {
+            auto dst_vk_code = vk_code;
+
+            if (map_to != nullptr && *map_to == ':') {
+                dst_vk_code = strtoul(map_to + 1, nullptr, 16);
+            }
+
+            settings.pass_keys[static_cast<uint8_t>(vk_code)] = static_cast<uint8_t>(dst_vk_code);
+        }
+    }
 
     return TRUE;
 }
@@ -57,6 +82,13 @@ BOOL APIENTRY DllMain( HMODULE hModule,
     switch (ul_reason_for_call)
     {
     case DLL_PROCESS_ATTACH:
+#ifdef DX11PROXY
+        hTrueDX11_43Module = LoadLibraryA("d3dx11_43.original.dll");
+        if (!hTrueDX11_43Module) {
+            throw "Failed to load d3dx11_43.original.dll";
+        }
+#endif
+
         waitingForXCSoarBMP = LoadBitmap(hModule, MAKEINTRESOURCE(IDB_BITMAP1));
         backgroundBMP = LoadBitmap(hModule, MAKEINTRESOURCE(IDB_BITMAP2));
         captureBMP = LoadBitmap(hModule, MAKEINTRESOURCE(IDB_BITMAP3));
@@ -70,6 +102,11 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         DeleteObject(waitingForXCSoarBMP);
         DeleteObject(backgroundBMP);
         DeleteObject(captureBMP);
+
+
+#ifdef DX11PROXY
+        FreeLibrary(reinterpret_cast<HMODULE>(hTrueDX11_43Module));
+#endif
         break;
     }
     return TRUE;
