@@ -1,5 +1,5 @@
 # Condor 2 PDA Injector
-This project was created to enable embdding XCSoar (or any other windows appliocation) inside the Condor 2 Soaring Simulator's PDA for use in VR. While there are other methods, like a Virtual Desktop window placement, they do not provide the same level of immersion. They do make it easier to read XCSoar though ;-)
+This project was created to enable embedding XCSoar (or any other Windows application) inside the Condor 2 Soaring Simulator's PDA for use in VR. While there are other methods, like a Virtual Desktop window placement, they do not provide the same level of immersion.
 
 ![Running XCSoar inside ASW28 PDA](https://github.com/piopawlu/pda-injector/blob/main/docs/xcsoar_pda_asw28.jpeg?raw=true "Running XCSoar inside ASW28 PDA")
 
@@ -11,11 +11,11 @@ Currently only Condor2 2.2.0 is supported. I will try to maintain it when a new 
 
 This is a beta release and there's at least one known issue and some limitations:
 
-~~1. Taking in-game screenshot (S key) casues the game to crash at the moment (2024/03/30)~~ (Solved in Beta 3)
+1. ~~Taking in-game screenshot (S key) casues the game to crash at the moment (2024/03/30)~~ (Solved in Beta 3)
 
-~~2. No effort has been made to provide any sort of control over the XCSoar at this point.~~ (Solved in Beta 1.4)
+2. ~~No effort has been made to provide any sort of control over the XCSoar at this point.~~ (Solved in Beta 1.4)
 
-~~3. Multiplayer is broken due to modified binary~~ (Solved in Beta 1.4, no more exe patching)
+3. ~~Multiplayer is broken due to modified binary~~ (Solved in Beta 1.4, no more exe patching)
 
 4. Symbols on the XCSoar screen may appear too small and be difficult to read. This can be solved by increasing the text size and DPI setting inside XCSoar.
 
