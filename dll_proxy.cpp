@@ -111,7 +111,7 @@ BOOL WINAPI ExtTextOutAOverride(_In_ HDC hdc, _In_ int x, _In_ int y, _In_ UINT 
 	}
 	else if (lpString[0] == '-' || lpString[0] >= '0' && lpString[0] <= '9') {
 		const auto len = strlen(lpString);
-		if (len >= 4 && (strcmp(lpString + (len - 4), " m/s") == 0 ||
+		if (len >= 4 && y == 0xA3 && (strcmp(lpString + (len - 4), " m/s") == 0 ||
 			strcmp(lpString + (len - 4), " kts") == 0)) {
 			PDAInject(hdc, 3);
 			currentPage = 3;
