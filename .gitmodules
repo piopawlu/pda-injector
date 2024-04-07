@@ -1,3 +1,6 @@
 [submodule "inih"]
 	path = inih
 	url = https://github.com/benhoyt/inih.git
+[submodule "fmt"]
+	path = fmt
+	url = https://github.com/fmtlib/fmt.git

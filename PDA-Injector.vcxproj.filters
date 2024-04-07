@@ -16,15 +16,22 @@
     <Filter Include="Source Files\inih">
       <UniqueIdentifier>{90f30a0f-f9d0-434e-8486-83ea87d367ac}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\fmt">
+      <UniqueIdentifier>{d6a790c0-87a7-4c5c-ac61-57f5f4f21d84}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="PDA-Injector.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="joystick.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -42,6 +49,15 @@
       <Filter>Source Files\inih</Filter>
     </ClCompile>
     <ClCompile Include="dll_proxy.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="fmt\src\format.cc">
+      <Filter>Source Files\fmt</Filter>
+    </ClCompile>
+    <ClCompile Include="fmt\src\os.cc">
+      <Filter>Source Files\fmt</Filter>
+    </ClCompile>
+    <ClCompile Include="joystick.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

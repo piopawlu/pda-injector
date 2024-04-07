@@ -25,6 +25,8 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110 - 1301, USA.
 #include <array>
 #include <vector>
 
+#include "fmt/format.h"
+
 #ifdef min 
 #undef min
 #endif
@@ -87,7 +89,7 @@ BOOL CopyXCSoarToPDA(HWND hWnd, HDC srcDC, HDC dstDC) {
 
     BitBlt(hTempDC, 0, 0, width, height, srcDC, 0, 0, SRCCOPY);
 
-    if (pdaOptions.swap_colours) {
+    if (pdaOptions.pda.swap_colours) {
         SwapRedAndBlue(hTempDC, captureBMP);
     }
 
@@ -125,17 +127,18 @@ static WNDPROC condorWndProc = NULL;
 
 LRESULT CALLBACK CaptureWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-
+    
     if ((msg == WM_KEYDOWN || msg == WM_KEYUP) && hXCSoarWnd != NULL)
     {
         const uint8_t key = static_cast<uint8_t>(wParam);
-        if (pdaOptions.pass_keys[key] != 0 || (pdaOptions.pass_all_with_shift && (GetKeyState(VK_SHIFT) & 0x8000) != 0)) {
-            const WPARAM mappedKey = static_cast<WPARAM>(pdaOptions.pass_keys[key]);
+        if (pdaOptions.app.pass_keys[key] != 0 || (pdaOptions.app.pass_all_with_shift && (GetKeyState(VK_SHIFT) & 0x8000) != 0)) {
+            const WPARAM mappedKey = static_cast<WPARAM>(pdaOptions.app.pass_keys[key]);
             PostMessageA(hXCSoarWnd, msg, mappedKey, lParam);
             return 1;
         }
     }
-    else if (msg == WM_DESTROY) {
+    else if (msg == WM_DESTROY)
+    {
         const auto result = CallWindowProc(condorWndProc, hWnd, msg, wParam, lParam);
         SetWindowLong(hWnd, GWL_WNDPROC, (LONG)(condorWndProc));
         condorWndProc = NULL;
@@ -147,13 +150,13 @@ LRESULT CALLBACK CaptureWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPara
     return CallWindowProc(condorWndProc, hWnd, msg, wParam, lParam);
 }
 
-PDAINJECTOR_API BOOL __stdcall PDAInject(HDC hPdaDC, int page)
+bool PDAInject(HDC hPdaDC, int page)
 {
     if (hPdaDC == NULL) {
-        return FALSE;
+        return false;
     }
 
-    if (pdaOptions.pass_input && condorWndProc == NULL) {
+    if (pdaOptions.app.pass_input && condorWndProc == NULL) {
         hCondorWnd = FindWindowA(NULL, "Condor version 2.2.0");
         if (hCondorWnd != NULL) {
             condorWndProc = reinterpret_cast<WNDPROC>(GetWindowLong(hCondorWnd, GWL_WNDPROC));
@@ -164,24 +167,24 @@ PDAINJECTOR_API BOOL __stdcall PDAInject(HDC hPdaDC, int page)
         }
     }
 
-    if (page == pdaOptions.page && pdaOptions.enabled)
+    if (page == pdaOptions.pda.page && pdaOptions.pda.enabled)
     {
         if (hXCSoarWnd == NULL) {
-            hXCSoarWnd = FindWindowA(NULL, pdaOptions.window.c_str());
+            hXCSoarWnd = FindWindowA(NULL, pdaOptions.app.window.c_str());
         }
 
         if (hXCSoarWnd != NULL) {
             HDC hXCSoarDC = GetDC(hXCSoarWnd);
             if (!hXCSoarDC) {
                 hXCSoarWnd = NULL;
-                return TRUE;
+                return true;
             }
 
             CopyXCSoarToPDA(hXCSoarWnd, hXCSoarDC, hPdaDC);
             ReleaseDC(hXCSoarWnd, hXCSoarDC);
-            return TRUE;
+            return true;
         }
-        else if (pdaOptions.show_waiting_screen == true)
+        else if (pdaOptions.pda.show_waiting_screen == true)
         {
             extern HBITMAP waitingForXCSoarBMP;
 
@@ -189,7 +192,7 @@ PDAINJECTOR_API BOOL __stdcall PDAInject(HDC hPdaDC, int page)
             SelectObject(hdcMem, waitingForXCSoarBMP);
             BitBlt(hPdaDC, 30 / DIVIDER, 30 / DIVIDER, XC_WIDTH, XC_HEIGHT, hdcMem, 0, 0, SRCCOPY);
             DeleteDC(hdcMem);
-            return TRUE;
+            return true;
         }
     }
 
@@ -198,5 +201,5 @@ PDAINJECTOR_API BOOL __stdcall PDAInject(HDC hPdaDC, int page)
 #if DIVIDER != 4
     ResizeOriginalPDA(hPdaDC);
 #endif
-    return TRUE;
+    return true;
 }

@@ -20,8 +20,10 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110 - 1301, USA.
 #include <Windows.h>
 #include "resource.h"
 #include "PDA-Injector.h"
+#include "joystick.h"
 
 #include "inih/cpp/INIReader.h"
+#include "fmt/format.h"
 
 
 HBITMAP waitingForXCSoarBMP = NULL;
@@ -41,15 +43,15 @@ BOOL LoadSettings(PDAInjectorOptions& settings, std::string ini_path)
     }
 
     // [pda]
-    settings.enabled = reader.GetBoolean("pda", "enabled", true);
-    settings.page = reader.GetInteger("pda", "page", 2);
-    settings.swap_colours = reader.GetBoolean("pda", "swap_colours", true);
-    settings.show_waiting_screen = reader.GetBoolean("pda", "show_waiting_screen", true);
+    settings.pda.enabled = reader.GetBoolean("pda", "enabled", true);
+    settings.pda.page = reader.GetInteger("pda", "page", 2);
+    settings.pda.swap_colours = reader.GetBoolean("pda", "swap_colours", true);
+    settings.pda.show_waiting_screen = reader.GetBoolean("pda", "show_waiting_screen", true);
 
     // [app]
-    settings.window = reader.GetString("app", "window", "XCSoar");
-    settings.pass_input = reader.GetBoolean("app", "pass_input", false);
-    settings.pass_all_with_shift = reader.GetBoolean("app", "pass_all_with_shift", false);
+    settings.app.window = reader.GetString("app", "window", "XCSoar");
+    settings.app.pass_input = reader.GetBoolean("app", "pass_input", false);
+    settings.app.pass_all_with_shift = reader.GetBoolean("app", "pass_all_with_shift", false);
 
     for (int i = 0; i < 32; i++) {
         std::string option_name = "pass_key_" + std::to_string(i + 1);
@@ -67,7 +69,29 @@ BOOL LoadSettings(PDAInjectorOptions& settings, std::string ini_path)
                 dst_vk_code = strtoul(map_to + 1, nullptr, 16);
             }
 
-            settings.pass_keys[static_cast<uint8_t>(vk_code)] = static_cast<uint8_t>(dst_vk_code);
+            settings.app.pass_keys[static_cast<uint8_t>(vk_code)] = static_cast<uint8_t>(dst_vk_code);
+        }
+    }
+
+    settings.joystick.enabled = reader.GetBoolean("joystick", "enabled", false);
+    settings.joystick.debug = reader.GetBoolean("joystick", "debug", false);
+
+    if (settings.joystick.enabled) {
+        for (int i = 0; i < 128; i++) {
+            std::string option_name = "command_" + std::to_string(i + 1);
+            const auto btn_str = reader.GetString("joystick", option_name, "");
+            if (btn_str.empty()) {
+                break;
+            }
+
+            const auto btn_command_opt = joystick::ParseCommand(btn_str);
+            if (btn_command_opt == std::nullopt) {
+                MessageBoxA(NULL, fmt::format("Failed to parse joystick command:\n{}", btn_str).c_str(),
+                    "PDA Injector", MB_ICONWARNING);
+                continue;
+            }
+
+            settings.joystick.button_commands.emplace_back(btn_command_opt.value());
         }
     }
 
@@ -94,6 +118,11 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         captureBMP = LoadBitmap(hModule, MAKEINTRESOURCE(IDB_BITMAP3));
         
         LoadSettings(pdaOptions, "pda.ini");
+
+        if (pdaOptions.joystick.enabled == true) {
+            joystick::StartThread(pdaOptions);
+        }
+
         break;
     case DLL_THREAD_ATTACH:
     case DLL_THREAD_DETACH:
@@ -102,6 +131,10 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         DeleteObject(waitingForXCSoarBMP);
         DeleteObject(backgroundBMP);
         DeleteObject(captureBMP);
+
+        if (pdaOptions.joystick.enabled == true) {
+            joystick::StopThread();
+        }
 
 
 #ifdef DX11PROXY

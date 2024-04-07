@@ -58,9 +58,7 @@ typedef int(__stdcall *D3DX11CSRVFFA)(void*, const void*, void*, void*, void*, v
 static D3DX11CSRVFFA addr_D3DX11CreateShaderResourceViewFromFileA = NULL;
 static bool gdi_hooked = false;
 
-extern "C" {
-	BOOL __stdcall PDAInject(HDC hdc, int page);
-}
+bool PDAInject(HDC hdc, int page);
 
 static HDC hStoredEllipseHDC = NULL;
 static int currentPage = 0;
@@ -172,7 +170,7 @@ HRESULT WINAPI D3DX11CreateShaderResourceViewFromFileA(
 		addr_D3DX11CreateShaderResourceViewFromFileA = (D3DX11CSRVFFA)GetProcAddress(hTrueDX11_43Module, "D3DX11CreateShaderResourceViewFromFileA");
 	}
 
-	if (pdaOptions.enabled == true && 
+	if (pdaOptions.pda.enabled == true && 
 		strcmp(pSrcFile, "PLANES\\TEXTURES\\IPAQSCREEN.BMP") == 0)
 	{
 		pSrcFile = "PLANES\\TEXTURES\\IPAQ1024.BMP";
