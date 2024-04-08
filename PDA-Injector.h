@@ -49,7 +49,7 @@ struct PDAInjectorOptions {
 		bool enabled = true;
 		bool debug = false;
 		
-		std::vector<joystick::button_command_t> button_commands;
+		std::vector<joystick::command_t> commands;
 	} joystick;
 
 	PDAInjectorOptions() {

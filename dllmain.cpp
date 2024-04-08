@@ -91,7 +91,7 @@ BOOL LoadSettings(PDAInjectorOptions& settings, std::string ini_path)
                 continue;
             }
 
-            settings.joystick.button_commands.emplace_back(btn_command_opt.value());
+            settings.joystick.commands.emplace_back(btn_command_opt.value());
         }
     }
 
