@@ -16,8 +16,13 @@
 #include "fmt/include/fmt/format.h"
 
 #include "joystick.h"
+#include "mouse.h"
 
 using winrt::Windows::Gaming::Input::GameControllerSwitchPosition;
+
+extern POINT appMousePos;
+extern time_t appLastMouseMove;
+extern bool appMouseButtonDown;
 
 namespace joystick {
 
@@ -41,6 +46,7 @@ namespace joystick {
 
         uint64_t timestamp = 0;
         uint64_t num_readouts = 0;
+        bool use_for_mouse = false;
 
         ctrl_status_t() { std::fill(buttons.begin(), buttons.end(), false); }
 
@@ -54,14 +60,16 @@ namespace joystick {
             switches(std::move(st.switches)),
             axis(std::move(st.axis)),
             timestamp(st.timestamp),
-            num_readouts(st.num_readouts) { }
+            num_readouts(st.num_readouts),
+            use_for_mouse(st.use_for_mouse) { }
 
         ctrl_status_t(const ctrl_status_t& st) : num_buttons(st.num_buttons),
             buttons(st.buttons),
             switches(st.switches.size()),
             axis(st.axis.size()),
             timestamp(st.timestamp),
-            num_readouts(st.num_readouts)
+            num_readouts(st.num_readouts),
+            use_for_mouse(st.use_for_mouse)
         {
             std::copy(st.axis.cbegin(), st.axis.cend(), axis.begin());
             std::copy(st.switches.cbegin(), st.switches.cend(), switches.begin());
@@ -104,9 +112,9 @@ namespace joystick {
         KEYBDINPUT& ki = input.ki;
 
         input.type = INPUT_KEYBOARD;
-        ki.wVk = vkey;
-        ki.wScan = 0;
-        ki.dwFlags = up ? KEYEVENTF_KEYUP : 0;
+        ki.wVk = 0;
+        ki.wScan = MapVirtualKeyA(vkey, MAPVK_VK_TO_VSC);
+        ki.dwFlags = up ? (KEYEVENTF_KEYUP | KEYEVENTF_SCANCODE) : KEYEVENTF_SCANCODE;
         ki.time = 0;
         ki.dwExtraInfo = NULL;
         SendInput(1, &input, sizeof(INPUT));
@@ -128,6 +136,9 @@ namespace joystick {
 
         std::shared_mutex mutex;
         std::atomic<bool> controllers_updated = false;
+
+        appMousePos.x = 0;
+        appMousePos.y = 0;
 
         winrt::init_apartment();
 
@@ -157,7 +168,23 @@ namespace joystick {
                 }
             }
 
-            if (!options.joystick.debug && instance.commands.empty() && instance.commands.empty()) {
+            if (options.joystick.mouse_enabled) {
+                if (options.joystick.mouse_vid == vid && options.joystick.mouse_pid == pid) {
+                    instance.status.use_for_mouse = true;
+
+                    command_t cmd;
+
+                    cmd.button_id = options.joystick.mouse_button;
+                    cmd.button_trigger_state = 1;
+                    cmd.target = target_t::app;
+                    cmd.trigger_vkey = VKEY_MOUSE_LBUTTON;
+                    cmd.type = type_t::button_cmd;
+
+                    instance.commands.push_back(cmd);
+                }
+            }
+
+            if (!options.joystick.debug && instance.commands.empty() && instance.commands.empty() && instance.status.use_for_mouse == false) {
                 return;
             }
 
@@ -196,7 +223,7 @@ namespace joystick {
 
             for (const auto& ctrl : controllers)
             {
-                const auto key = ctrl.NonRoamableId(); //(ctrl.HardwareVendorId() << 16 | ctrl.HardwareProductId());
+                const auto key = ctrl.NonRoamableId();
 
                 auto& instance = ctrl_instances[key];
                 auto& status = instance.status;
@@ -204,6 +231,27 @@ namespace joystick {
 
                 status.timestamp = ctrl.GetCurrentReading(status.buttons, status.switches, status.axis);
                 status.num_readouts += 1;
+
+
+                if (instance.status.use_for_mouse) {
+                    const auto new_x = appMousePos.x + std::round(status.axis[options.joystick.mouse_x_axis] * 20.0 - 10.0);
+                    const auto new_y = appMousePos.y + std::round(status.axis[options.joystick.mouse_y_axis] * 20.0 - 10.0);
+
+                    if (new_x != appMousePos.x || new_y != appMousePos.y) {
+                        appLastMouseMove = time(nullptr);
+                    }
+
+                    appMousePos.x = std::clamp(static_cast<long>(new_x), 0l, XC_WIDTH);
+                    appMousePos.y = std::clamp(static_cast<long>(new_y), 0l, XC_HEIGHT);
+
+                    if (status.buttons[options.joystick.mouse_button]) {
+                        HWND targetWindow = GetTargetWindow(options);
+                        if (targetWindow != NULL) {
+                            SendMouseToBestTarget(targetWindow, appMousePos, WM_MOUSEMOVE, MK_LBUTTON);
+                        }
+                    }
+                }
+
                 if (status.timestamp == prev_status.timestamp || status.num_readouts < 10) {
                     continue; // no change, same reading
                 }
@@ -270,7 +318,17 @@ namespace joystick {
                                     continue;
                                 }
 
-                                if (!PostMessageA(targetWindow, message, cmd.trigger_vkey, 0)) {
+
+                                bool result = false;
+
+                                if (cmd.trigger_vkey == VKEY_MOUSE_LBUTTON) {
+                                    result = SendMouseToBestTarget(targetWindow, appMousePos, message == WM_KEYUP ? WM_LBUTTONUP : WM_LBUTTONDOWN, 0);
+                                }
+                                else {
+                                    result = PostMessageA(targetWindow, message, cmd.trigger_vkey, 0);
+                                }
+
+                                if (!result) {
                                     targetWindow = NULL;
                                 }
                             }
@@ -331,7 +389,7 @@ namespace joystick {
 
     std::optional<command_t> ParseCommand(const std::string& cmd_str)
     {
-        std::regex cmd_regex(R"(^([0-9a-fA-F]{4}):([0-9a-fA-F]{4}):([BS]):(\d+):([01]):([0-9a-fA-FxX]+):([AC])$)");
+        std::regex cmd_regex(R"(^([0-9a-fA-F]{4}):([0-9a-fA-F]{4}):([BS]):(\d+):([0-9]):([0-9a-fA-FxX]+|@\w):([AC])$)");
         std::smatch match;
 
         if (!std::regex_match(cmd_str, match, cmd_regex)) {
@@ -345,7 +403,12 @@ namespace joystick {
         cmd.type = match[3].str() == "S" ? type_t::switch_cmd : type_t::button_cmd;
         cmd.button_id = std::stoi(match[4].str());
         cmd.button_trigger_state = std::stoi(match[5].str()) != 0;
-        cmd.trigger_vkey = std::stoi(match[6].str(), nullptr, 16) & 0x0FF;
+        const auto vk_str = match[6].str();
+        if (vk_str.size() == 2 && vk_str[0] == '@') {
+            cmd.trigger_vkey = static_cast<uint8_t>(vk_str[1]);
+        } else {
+            cmd.trigger_vkey = std::stoi(vk_str, nullptr, 16) & 0x0FF;
+        }
         cmd.target = match[7].str() == "C" ? target_t::condor : target_t::app;
 
         return cmd;

@@ -20,21 +20,20 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110 - 1301, USA.
 
 #include "PDA-Injector.h"
 #include "resource.h"
+#include "mouse.h"
 
 #include <algorithm>
 #include <array>
 #include <vector>
+#include <chrono>
+
+#include <windowsx.h>
 
 #include "fmt/format.h"
 
 #ifdef min 
 #undef min
 #endif
-
-#define DIVIDER 1
-
-constexpr long XC_WIDTH = 564 / DIVIDER;
-constexpr long XC_HEIGHT = 966 / DIVIDER;
 
 extern PDAInjectorOptions pdaOptions;
 
@@ -75,6 +74,10 @@ void SwapRedAndBlue(HDC hDC, HBITMAP hBitmap)
     SetDIBits(hDC, hBitmap, 0, XC_HEIGHT, pBits, &bmi, DIB_RGB_COLORS);
 }
 
+POINT appMousePos = { 0,0 };
+time_t appLastMouseMove = 0;
+bool appMouseButtonDown = false;
+
 BOOL CopyXCSoarToPDA(HWND hWnd, HDC srcDC, HDC dstDC) {
 
     extern HBITMAP captureBMP;
@@ -88,6 +91,16 @@ BOOL CopyXCSoarToPDA(HWND hWnd, HDC srcDC, HDC dstDC) {
     const long height = rect.bottom - rect.top;
 
     BitBlt(hTempDC, 0, 0, width, height, srcDC, 0, 0, SRCCOPY);
+
+    if ((pdaOptions.app.pass_mouse || pdaOptions.joystick.mouse_enabled) && 
+        (time(nullptr) - appLastMouseMove) < 15) {
+
+        auto brush = CreateSolidBrush(appMouseButtonDown ? RGB(0,0, 255) : RGB(255, 0, 0));
+        SelectObject(hTempDC, brush);
+        Ellipse(hTempDC, appMousePos.x - 6, appMousePos.y - 6, appMousePos.x + 6, appMousePos.y + 6);
+        GdiFlush();
+        DeleteObject(brush);
+    }
 
     if (pdaOptions.pda.swap_colours) {
         SwapRedAndBlue(hTempDC, captureBMP);
@@ -121,9 +134,56 @@ bool ResizeOriginalPDA(HDC hDC)
     return true;
 }
 
+static HHOOK hMouseHook;
 static HWND hXCSoarWnd = NULL;
+static HINSTANCE hXCSoarInstance = NULL;
 static HWND hCondorWnd = NULL;
 static WNDPROC condorWndProc = NULL;
+static bool condorWindowActive = true;
+
+LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
+    static POINT prevPos = { 0,0 };
+    static auto prevClick = std::chrono::steady_clock::time_point();
+
+    if (nCode >= 0 && condorWindowActive == true) {
+
+        appLastMouseMove = time(nullptr);
+
+        MSLLHOOKSTRUCT* pMouseStruct = (MSLLHOOKSTRUCT*)lParam;
+        if (pMouseStruct != nullptr) {
+
+            const auto dx = pMouseStruct->pt.x - prevPos.x;
+            const auto dy = pMouseStruct->pt.y - prevPos.y;
+
+            appMousePos.x = std::clamp(appMousePos.x + dx, 0l, XC_WIDTH);
+            appMousePos.y = std::clamp(appMousePos.y + dy, 0l, XC_HEIGHT);
+
+            prevPos = { pMouseStruct->pt.x , pMouseStruct->pt.y };
+        }
+
+        if (wParam == WM_RBUTTONDOWN) {
+            appMouseButtonDown = true;
+            SendMouseToBestTarget(hXCSoarWnd, appMousePos, WM_LBUTTONDOWN, 0);
+        }
+        else if (wParam == WM_RBUTTONUP) {
+            appMouseButtonDown = false;
+            SendMouseToBestTarget(hXCSoarWnd, appMousePos, WM_LBUTTONUP, 0);
+            const auto now = std::chrono::steady_clock::now();
+            if (now - prevClick < std::chrono::milliseconds(300)) {
+                SendMouseToBestTarget(hXCSoarWnd, appMousePos, WM_LBUTTONDBLCLK, 0);
+            }
+            prevClick = now;
+        }
+        else if (wParam == WM_MOUSEMOVE && appMouseButtonDown == true) {
+            SendMouseToBestTarget(hXCSoarWnd, appMousePos, WM_MOUSEMOVE, appMouseButtonDown ? MK_LBUTTON : 0);
+        }
+        else if (wParam == WM_MOUSEWHEEL) {
+            PostMessage(hXCSoarWnd, WM_MOUSEWHEEL, wParam, MAKELPARAM(appMousePos.x, appMousePos.y));
+        }
+    }
+
+    return CallNextHookEx(hMouseHook, nCode, wParam, lParam);
+}
 
 LRESULT CALLBACK CaptureWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -131,17 +191,27 @@ LRESULT CALLBACK CaptureWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPara
     if ((msg == WM_KEYDOWN || msg == WM_KEYUP) && hXCSoarWnd != NULL)
     {
         const uint8_t key = static_cast<uint8_t>(wParam);
-        if (pdaOptions.app.pass_keys[key] != 0 || (pdaOptions.app.pass_all_with_shift && (GetKeyState(VK_SHIFT) & 0x8000) != 0)) {
+        if (pdaOptions.app.pass_keys[key] != 0 || ((pdaOptions.app.pass_all_with_shift && (GetKeyState(VK_SHIFT) & 0x8000) != 0) && (key != VK_SHIFT))) {
             const WPARAM mappedKey = static_cast<WPARAM>(pdaOptions.app.pass_keys[key]);
+            if (msg == WM_KEYDOWN) {
+                PostMessage(hXCSoarWnd, WM_ACTIVATE, WA_ACTIVE, 0);
+            }
             PostMessageA(hXCSoarWnd, msg, mappedKey, lParam);
             return 1;
         }
+    }
+    else if (msg == WM_ACTIVATE) {
+        condorWindowActive = (wParam != WA_INACTIVE);
     }
     else if (msg == WM_DESTROY)
     {
         const auto result = CallWindowProc(condorWndProc, hWnd, msg, wParam, lParam);
         SetWindowLong(hWnd, GWL_WNDPROC, (LONG)(condorWndProc));
         condorWndProc = NULL;
+
+        if (pdaOptions.app.pass_mouse) {
+            UnhookWindowsHookEx(hMouseHook);
+        }
 
         hCondorWnd = NULL;
         return result;
@@ -165,15 +235,29 @@ bool PDAInject(HDC hPdaDC, int page)
                 LoadSettings(pdaOptions, "pda.ini");
             }
         }
+
+        if (pdaOptions.app.pass_mouse) {
+            hMouseHook = SetWindowsHookEx(WH_MOUSE_LL, MouseProc, NULL, 0);
+        }
     }
+
+
 
     if (page == pdaOptions.pda.page && pdaOptions.pda.enabled)
     {
         if (hXCSoarWnd == NULL) {
             hXCSoarWnd = FindWindowA(NULL, pdaOptions.app.window.c_str());
+            if (hXCSoarWnd != NULL) {
+                hXCSoarInstance = (HINSTANCE)GetWindowLong(hXCSoarWnd, GWL_HINSTANCE);
+            }
         }
 
         if (hXCSoarWnd != NULL) {
+            if (hXCSoarInstance != (HINSTANCE)GetWindowLong(hXCSoarWnd, GWL_HINSTANCE)) {
+                hXCSoarWnd = NULL;
+                return true;
+            }
+
             HDC hXCSoarDC = GetDC(hXCSoarWnd);
             if (!hXCSoarDC) {
                 hXCSoarWnd = NULL;

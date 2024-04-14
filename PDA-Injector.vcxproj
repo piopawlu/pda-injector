@@ -322,6 +322,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="joystick.h" />
+    <ClInclude Include="mouse.h" />
     <ClInclude Include="PDA-Injector.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
@@ -332,6 +333,7 @@
     <ClCompile Include="fmt\src\os.cc" />
     <ClCompile Include="inih\cpp\INIReader.cpp" />
     <ClCompile Include="inih\ini.c" />
+    <ClCompile Include="mouse.cpp" />
     <ClCompile Include="PDA-Injector.cpp" />
     <ClCompile Include="dll_proxy.cpp" />
   </ItemGroup>

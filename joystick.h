@@ -6,6 +6,8 @@
 
 struct PDAInjectorOptions;
 
+#define VKEY_MOUSE_LBUTTON 0xFF
+
 namespace joystick {
 	enum class target_t {
 		app = 0,

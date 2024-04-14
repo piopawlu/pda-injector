@@ -27,6 +27,11 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110 - 1301, USA.
 
 #include "joystick.h"
 
+
+#define DIVIDER 1
+constexpr long XC_WIDTH = 564 / DIVIDER;
+constexpr long XC_HEIGHT = 966 / DIVIDER;
+
 struct PDAInjectorOptions {
 	// [pda] section
 	struct {
@@ -40,6 +45,7 @@ struct PDAInjectorOptions {
 	struct {
 		std::string window = "XCSoar";
 		bool pass_input = true;
+		bool pass_mouse = true;
 		bool pass_all_with_shift = true;
 		std::array<uint8_t, 256> pass_keys;
 	} app;
@@ -48,6 +54,12 @@ struct PDAInjectorOptions {
 	struct {
 		bool enabled = true;
 		bool debug = false;
+		bool mouse_enabled = true;
+		int mouse_x_axis = 0;
+		int mouse_y_axis = 1;
+		int mouse_button = 21;
+		unsigned short mouse_vid = 0x4098;
+		unsigned short mouse_pid = 0xBE62;
 		
 		std::vector<joystick::command_t> commands;
 	} joystick;

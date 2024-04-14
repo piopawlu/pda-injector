@@ -121,7 +121,7 @@ BOOL WINAPI ExtTextOutAOverride(_In_ HDC hdc, _In_ int x, _In_ int y, _In_ UINT 
 			currentPage = 0;
 		}
 	}
-	else if (lpString[0] == 'E' && lpString[1] == '\0' && lprect == NULL) {
+	else if (lpString[0] == 'E' && lpString[1] == '\0' && lprect == NULL && x == 133 && y == 69) {
 		PDAInject(hdc, 3);
 		currentPage = 3;
 	}
