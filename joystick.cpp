@@ -258,7 +258,7 @@ namespace joystick {
 
                 if (options.joystick.debug) {
                     for (int i = 0; i < status.num_buttons; i++) {
-                        if (status.buttons[i] != prev_status.buttons[i]) {
+                        if (status.buttons[i] != prev_status.buttons[i] && status.buttons[i]) {
 
                             const auto debug_text = fmt::format("Name: {}\nBTN Command: {:04X}:{:04X}:B:{:02d}:{:d}:??:A\n\n{}",
                                 winrt::to_string(ctrl.DisplayName()),
