@@ -57,6 +57,62 @@ enabled=true
 page=2
 swap_colours=true
 show_waiting_screen=true
+
+[joystick]
+# If enabled, the PDA injector app will listen for joystick actions and pass selected button presses to either the target app or condor as keyboard events.
+# This lets you use controllers with up to 128 buttons natively in condor.
+# Syntax:
+#
+# VID:PID:X:BTN:S:VKEY
+#
+# VID and PID are hexadecimal VendorID and ProductID
+# BTN is a decimal button number, use debug mode to identify buttons
+# X is either B for button or S for switch (POV is a switch)
+# S is 0 or 1 status, a change from !S to S will trigger the action, WK_KEYDOWN will be sent on S, and WK_KEYUP will be sent on !S
+# TARGET is either C - Condor, or A - App (XCSoar/LK8000). Condor input is passed globally with SendInput API, app input is using window messages directly.
+#
+# Example:
+#
+# command_1=4098:BE62:20:1:0x28:A ; Will send 'DOWN' key to APP (XCSoar) when button 20 on Joystick 4098:BE62 changes from 0 to 1
+#
+# You can also enable the debug mode in which case whenever you press a button you will get a message box including the button number and state as well as optionally copy the command to be pasted in this file.
+
+enabled=false
+debug=false
+
+command_1=4098:BEA8:B:36:1:26:A ; pov up as up to xcsoar
+command_2=4098:BEA8:B:38:1:28:A ; pov dn as dn to xcsoar
+command_3=4098:BEA8:B:39:1:25:A ; pov left as left to xcsoar
+command_4=4098:BEA8:B:37:1:27:A ; pov right as right to xcsoar
+command_5=4098:BEA8:B:35:1:0D:A ; pov center as enter to xcsoar
+command_6=4098:BE62:B:05:1:70:A ; TH L as F1
+command_7=4098:BE62:B:06:1:71:A ; TH R as F2
+
+command_8=4098:BE62:B:20:1:@R:C ; btn 20 as R - Release
+command_9=4098:BEA8:S:00:0:2D:C ; POV UP as Ins
+command_10=4098:BEA8:S:00:5:2E:C ; POV DN as Del
+command_11=4098:BEA8:B:18:1:7B:C ; POV CTR as F12
+
+command_12=4098:BEA8:B:34:1:@1:C ; PDA 1
+command_13=4098:BEA8:B:32:1:@2:C ; PDA 2
+command_14=4098:BEA8:B:30:1:@3:C ; PDA 3
+command_15=4098:BEA8:B:31:1:@4:C ; PDA 4
+command_16=4098:BEA8:B:33:1:@M:C ; PDA Next
+
+command_17=4098:BE62:B:15:1:@V:C ; Flaps down - V
+command_18=4098:BE62:B:13:1:@F:C ; Flaps up - F
+command_19=4098:BE62:B:72:1:@G:C ; Gear toggle - G
+command_20=4098:BE62:B:79:1:@P:C ; Pause - P
+command_21=4098:BE62:B:10:1:65:C ; Reset View - Num5
+command_22=4098:BE62:B:95:1:@Q:C ; Miracle - Q
+command_23=4098:BEA8:B:07:1:BE:C ; Wheel brake - .
+
+mouse_enabled=true
+mouse_x_axis=0
+mouse_y_axis=1
+mouse_button=21
+mouse_vid=4098
+mouse_pid=BE62
 ```
 
 The swap_colours option is needed to swap red and blue channels in the resulting bitmap. If you don't care about colours not matching you can disable that and potentially gain some performance on slower computers.
