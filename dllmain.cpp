@@ -44,7 +44,6 @@ BOOL LoadSettings(PDAInjectorOptions& settings, std::string ini_path)
 
     // [pda]
     settings.pda.enabled = reader.GetBoolean("pda", "enabled", true);
-    settings.pda.page = reader.GetInteger("pda", "page", 2);
     settings.pda.swap_colours = reader.GetBoolean("pda", "swap_colours", true);
     settings.pda.show_waiting_screen = reader.GetBoolean("pda", "show_waiting_screen", true);
 
@@ -112,7 +111,6 @@ BOOL APIENTRY DllMain( HMODULE hModule,
             throw "Failed to load d3dx11_43.original.dll";
         }
 #endif
-
         waitingForXCSoarBMP = LoadBitmap(hModule, MAKEINTRESOURCE(IDB_BITMAP1));
         backgroundBMP = LoadBitmap(hModule, MAKEINTRESOURCE(IDB_BITMAP2));
         captureBMP = LoadBitmap(hModule, MAKEINTRESOURCE(IDB_BITMAP3));
