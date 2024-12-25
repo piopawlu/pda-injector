@@ -28,14 +28,12 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110 - 1301, USA.
 #include "joystick.h"
 
 
-#define DIVIDER 1
-constexpr long XC_WIDTH = 564 / DIVIDER;
-constexpr long XC_HEIGHT = 966 / DIVIDER;
+constexpr long XC_WIDTH = (298 * 2);
+constexpr long XC_HEIGHT = (498 * 2);
 
 struct PDAInjectorOptions {
 	// [pda] section
 	struct {
-		int  page = 2; // 0 - map, 1 - MC, 2 - nav , 3 - thermal/wind
 		bool enabled = true;
 		bool show_waiting_screen = true;
 		bool swap_colours = true; //XCSoar returns data with red and blue channels swapped...

@@ -1,23 +1,18 @@
-# Condor 2 PDA Injector
+# Condor 3 PDA Injector
 This project was created to enable embedding XCSoar (or any other Windows application) inside the Condor 2 Soaring Simulator's PDA for use in VR. While there are other methods, like a Virtual Desktop window placement, they do not provide the same level of immersion.
 
-![Running XCSoar inside ASW28 PDA](https://github.com/piopawlu/pda-injector/blob/main/docs/xcsoar_pda_asw28.jpeg?raw=true "Running XCSoar inside ASW28 PDA")
+![Running XCSoar inside JS3-18 Navigation Computer](docs/xcsoar_pda_js3-18.jpeg?raw=true "Running XCSoar inside JS3-18 Navigation Computer")
 
 The injection process works by proxying access to **d3dx11_43.dll** to substitute the PDA texture file for a higher resolution and hook to 3 GDI calls (LineTo, Ellipse and ExtTextOutA). The GDI hooks are used to detect PDA screen drawing and call the injection method after the last call. This was previously done via binary patching of the Condor app which would break multiplayer access. There's still a tiny bit of live runtime patching left, just two bytes, to change the texture size.
 
-Currently only Condor2 2.2.0 is supported. I will try to maintain it when a new version appears and hopefully even in Condor 3 if necessary.
+Currently only Condor3 3.0.3 is supported. I will try to maintain it and update the build within a few days when a new version appears.
+An older release is available for Condor 2.0.2 - ([Condor 2 PDA Injector](https://github.com/piopawlu/pda-injector/tree/beta1.5 "Condor 2 PDA Injector"))
 
 # Known issues
 
 This is a beta release and there's at least one known issue and some limitations:
 
-1. ~~Taking in-game screenshot (S key) casues the game to crash at the moment (2024/03/30)~~ (Solved in Beta 3)
-
-2. ~~No effort has been made to provide any sort of control over the XCSoar at this point.~~ (Solved in Beta 1.4)
-
-3. ~~Multiplayer is broken due to modified binary~~ (Solved in Beta 1.4, no more exe patching)
-
-4. Symbols on the XCSoar screen may appear too small and be difficult to read. This can be solved by increasing the text size and DPI setting inside XCSoar.
+1. Mouse input is currently broken
 
 # Installation
 
@@ -25,9 +20,11 @@ You can either build everything by yourself (Visual Studio Community Edition pro
 
 Go to [PDA Injector Releases](https://github.com/piopawlu/pda-injector/releases "PDA Injector Releases")
 
+You can toggle between the built in PDA and XCSoar by using the F10 key (hardcoded for now)
+
 # Configuration
 
-You can now configure some of the PDA Injector behaviour by editing the pda.ini file. 
+You can now configure some of the PDA Injector behaviour by editing the pda.ini file.
 
 By default the following config is used:
 
@@ -54,7 +51,6 @@ window=XCSoar
 
 [pda]
 enabled=true
-page=2
 swap_colours=true
 show_waiting_screen=true
 

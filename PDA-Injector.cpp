@@ -31,7 +31,7 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110 - 1301, USA.
 
 #include "fmt/format.h"
 
-#ifdef min 
+#ifdef min
 #undef min
 #endif
 
@@ -92,7 +92,7 @@ BOOL CopyXCSoarToPDA(HWND hWnd, HDC srcDC, HDC dstDC) {
 
     BitBlt(hTempDC, 0, 0, width, height, srcDC, 0, 0, SRCCOPY);
 
-    if ((pdaOptions.app.pass_mouse || pdaOptions.joystick.mouse_enabled) && 
+    if ((pdaOptions.app.pass_mouse || pdaOptions.joystick.mouse_enabled) &&
         (time(nullptr) - appLastMouseMove) < 15) {
 
         auto brush = CreateSolidBrush(appMouseButtonDown ? RGB(0,0, 255) : RGB(255, 0, 0));
@@ -106,8 +106,7 @@ BOOL CopyXCSoarToPDA(HWND hWnd, HDC srcDC, HDC dstDC) {
         SwapRedAndBlue(hTempDC, captureBMP);
     }
 
-    const auto result = BitBlt(dstDC, 30 / DIVIDER, 30 / DIVIDER, std::min(XC_WIDTH, width),
-        std::min(XC_HEIGHT, height), hTempDC, 0, 0, SRCCOPY);
+    const auto result = StretchBlt(dstDC, 0, 0, XC_WIDTH, XC_HEIGHT, hTempDC, 0, 0, width, height, SRCCOPY);
 
     if (width != XC_WIDTH || height != XC_HEIGHT) {
         GetWindowRect(hWnd, &rect);
@@ -127,8 +126,8 @@ bool ResizeOriginalPDA(HDC hDC)
 
     HDC hdcMem = CreateCompatibleDC(hDC);
     SelectObject(hdcMem, backgroundBMP);
-    BitBlt(hdcMem, 0, 0, 256, 256, hDC, 0, 0, SRCCOPY);
-    StretchBlt(hDC, 0, 0, 1024 / DIVIDER, 1024 / DIVIDER, hdcMem, 0, 0, 256, 256, SRCCOPY);
+    BitBlt(hdcMem, 0, 0, XC_WIDTH / 2, XC_HEIGHT / 2, hDC, 0, 0, SRCCOPY);
+    StretchBlt(hDC, 0, 0, XC_WIDTH, XC_HEIGHT, hdcMem, 0, 0, XC_WIDTH / 2, XC_HEIGHT / 2, SRCCOPY);
     DeleteDC(hdcMem);
 
     return true;
@@ -141,9 +140,14 @@ static HWND hCondorWnd = NULL;
 static WNDPROC condorWndProc = NULL;
 static bool condorWindowActive = true;
 
+static std::chrono::steady_clock::time_point last_mouse_input;
+
 LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
     static POINT prevPos = { 0,0 };
     static auto prevClick = std::chrono::steady_clock::time_point();
+
+    const auto now = std::chrono::steady_clock::now();
+    last_mouse_input = now;
 
     if (nCode >= 0 && condorWindowActive == true) {
 
@@ -168,7 +172,7 @@ LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
         else if (wParam == WM_RBUTTONUP) {
             appMouseButtonDown = false;
             SendMouseToBestTarget(hXCSoarWnd, appMousePos, WM_LBUTTONUP, 0);
-            const auto now = std::chrono::steady_clock::now();
+            
             if (now - prevClick < std::chrono::milliseconds(300)) {
                 SendMouseToBestTarget(hXCSoarWnd, appMousePos, WM_LBUTTONDBLCLK, 0);
             }
@@ -187,7 +191,7 @@ LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
 
 LRESULT CALLBACK CaptureWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-    
+
     if ((msg == WM_KEYDOWN || msg == WM_KEYUP) && hXCSoarWnd != NULL)
     {
         const uint8_t key = static_cast<uint8_t>(wParam);
@@ -199,6 +203,9 @@ LRESULT CALLBACK CaptureWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPara
             PostMessageA(hXCSoarWnd, msg, mappedKey, lParam);
             return 1;
         }
+    }
+    else if (msg == WM_SYSKEYUP && static_cast<uint8_t>(wParam) == VK_F10) {
+        pdaOptions.pda.enabled = !pdaOptions.pda.enabled;
     }
     else if (msg == WM_ACTIVATE) {
         condorWindowActive = (wParam != WA_INACTIVE);
@@ -220,14 +227,14 @@ LRESULT CALLBACK CaptureWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPara
     return CallWindowProc(condorWndProc, hWnd, msg, wParam, lParam);
 }
 
-bool PDAInject(HDC hPdaDC, int page)
+bool PDAInject(HDC hPdaDC)
 {
     if (hPdaDC == NULL) {
         return false;
     }
 
     if (pdaOptions.app.pass_input && condorWndProc == NULL) {
-        hCondorWnd = FindWindowA(NULL, "Condor version 2.2.0");
+        hCondorWnd = FindWindowA(NULL, "Condor version 3.0.3");
         if (hCondorWnd != NULL) {
             condorWndProc = reinterpret_cast<WNDPROC>(GetWindowLong(hCondorWnd, GWL_WNDPROC));
             if (condorWndProc != NULL) {
@@ -235,15 +242,20 @@ bool PDAInject(HDC hPdaDC, int page)
                 LoadSettings(pdaOptions, "pda.ini");
             }
         }
-
-        if (pdaOptions.app.pass_mouse) {
-            hMouseHook = SetWindowsHookEx(WH_MOUSE_LL, MouseProc, NULL, 0);
-        }
     }
 
+    const auto now = std::chrono::steady_clock::now();
+    const auto since_last_mouse_input = now - last_mouse_input;
 
+    if (pdaOptions.app.pass_mouse && since_last_mouse_input >= std::chrono::seconds(30)) {
+        if (hMouseHook != NULL) {
+            UnhookWindowsHookEx(hMouseHook);
+        }
+        hMouseHook = SetWindowsHookEx(WH_MOUSE_LL, MouseProc, NULL, 0);
+        last_mouse_input = now;
+    }
 
-    if (page == pdaOptions.pda.page && pdaOptions.pda.enabled)
+    if (pdaOptions.pda.enabled)
     {
         if (hXCSoarWnd == NULL) {
             hXCSoarWnd = FindWindowA(NULL, pdaOptions.app.window.c_str());
@@ -274,16 +286,13 @@ bool PDAInject(HDC hPdaDC, int page)
 
             HDC hdcMem = CreateCompatibleDC(hPdaDC);
             SelectObject(hdcMem, waitingForXCSoarBMP);
-            BitBlt(hPdaDC, 30 / DIVIDER, 30 / DIVIDER, XC_WIDTH, XC_HEIGHT, hdcMem, 0, 0, SRCCOPY);
+            BitBlt(hPdaDC, 0, 0, XC_WIDTH, XC_HEIGHT, hdcMem, 0, 0, SRCCOPY);
             DeleteDC(hdcMem);
             return true;
         }
     }
 
     GdiFlush();
-
-#if DIVIDER != 4
     ResizeOriginalPDA(hPdaDC);
-#endif
     return true;
 }
