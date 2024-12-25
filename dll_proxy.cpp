@@ -91,18 +91,19 @@ BOOL WINAPI ExtTextOutAOverride(_In_ HDC hdc, _In_ int x, _In_ int y, _In_ UINT 
 
 void HookGDIFunctions() {
 	//(*(DWORD*)(0x007D6540)) = reinterpret_cast<DWORD>(ExtTextOutAOverride); //condor 3.0.0
-	(*(DWORD*)(0x007CE530)) = reinterpret_cast<DWORD>(ExtTextOutAOverride); //condor 3.0.2
+	(*(DWORD*)(0x007CE530)) = reinterpret_cast<DWORD>(ExtTextOutAOverride); //condor 3.0.2, 3.0.3
 
 	DWORD oldprotect = 0;
 	auto hProc = GetCurrentProcess();
 
 	// double the PDA texture size
-	VirtualProtectEx(hProc, (char*)0x0072D700, 0x100, PAGE_EXECUTE_READWRITE, &oldprotect);
-	((uint32_t*)0x0072D7A3)[0] *= 2;
-	((uint32_t*)0x0072D7B7)[0] *= 2;
-	((uint32_t*)0x0072D7C6)[0] *= 2;
-	((uint32_t*)0x0072D7CB)[0] *= 2;
-	VirtualProtectEx(hProc, (char*)0x0072D700, 0x100, oldprotect, &oldprotect);
+	char* BASE_ADDR = reinterpret_cast<char*>(0x006A9E00);
+	VirtualProtectEx(hProc, BASE_ADDR, 0x100, PAGE_EXECUTE_READWRITE, &oldprotect);
+	reinterpret_cast<uint32_t*>(BASE_ADDR + 0x23)[0] *= 2;
+	reinterpret_cast<uint32_t*>(BASE_ADDR + 0x37)[0] *= 2;
+	reinterpret_cast<uint32_t*>(BASE_ADDR + 0x46)[0] *= 2;
+	reinterpret_cast<uint32_t*>(BASE_ADDR + 0x4B)[0] *= 2;
+	VirtualProtectEx(hProc, BASE_ADDR, 0x100, oldprotect, &oldprotect);
 }
 
 HRESULT WINAPI D3DX11CreateShaderResourceViewFromFileA(

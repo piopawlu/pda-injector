@@ -15,8 +15,8 @@ Global
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{31ADF014-9765-425F-B523-4F5624DA53FA}.DebugProxy|x64.ActiveCfg = DebugProxy|x64
 		{31ADF014-9765-425F-B523-4F5624DA53FA}.DebugProxy|x64.Build.0 = DebugProxy|x64
-		{31ADF014-9765-425F-B523-4F5624DA53FA}.DebugProxy|x86.ActiveCfg = ReleaseProxy|Win32
-		{31ADF014-9765-425F-B523-4F5624DA53FA}.DebugProxy|x86.Build.0 = ReleaseProxy|Win32
+		{31ADF014-9765-425F-B523-4F5624DA53FA}.DebugProxy|x86.ActiveCfg = DebugProxy|Win32
+		{31ADF014-9765-425F-B523-4F5624DA53FA}.DebugProxy|x86.Build.0 = DebugProxy|Win32
 		{31ADF014-9765-425F-B523-4F5624DA53FA}.ReleaseProxy|x64.ActiveCfg = ReleaseProxy|x64
 		{31ADF014-9765-425F-B523-4F5624DA53FA}.ReleaseProxy|x64.Build.0 = ReleaseProxy|x64
 		{31ADF014-9765-425F-B523-4F5624DA53FA}.ReleaseProxy|x86.ActiveCfg = ReleaseProxy|Win32

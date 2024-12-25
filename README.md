@@ -5,17 +5,14 @@ This project was created to enable embedding XCSoar (or any other Windows applic
 
 The injection process works by proxying access to **d3dx11_43.dll** to substitute the PDA texture file for a higher resolution and hook to 3 GDI calls (LineTo, Ellipse and ExtTextOutA). The GDI hooks are used to detect PDA screen drawing and call the injection method after the last call. This was previously done via binary patching of the Condor app which would break multiplayer access. There's still a tiny bit of live runtime patching left, just two bytes, to change the texture size.
 
-Currently only Condor3 3.0.2 is supported. I will try to maintain it and update the build within a few days when a new version appears.
+Currently only Condor3 3.0.3 is supported. I will try to maintain it and update the build within a few days when a new version appears.
+An older release is available for Condor 2.0.2 - ([Condor 2 PDA Injector](https://github.com/piopawlu/pda-injector/tree/beta1.5 "Condor 2 PDA Injector"))
 
 # Known issues
 
 This is a beta release and there's at least one known issue and some limitations:
 
-1. ~~Taking in-game screenshot (S key) casues the game to crash at the moment (2024/03/30)~~ (Solved in Beta 3)
-
-2. ~~No effort has been made to provide any sort of control over the XCSoar at this point.~~ (Solved in Beta 1.4)
-
-3. ~~Multiplayer is broken due to modified binary~~ (Solved in Beta 1.4, no more exe patching)
+1. Mouse input is currently broken
 
 # Installation
 

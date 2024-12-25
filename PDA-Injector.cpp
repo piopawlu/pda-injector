@@ -140,9 +140,14 @@ static HWND hCondorWnd = NULL;
 static WNDPROC condorWndProc = NULL;
 static bool condorWindowActive = true;
 
+static std::chrono::steady_clock::time_point last_mouse_input;
+
 LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
     static POINT prevPos = { 0,0 };
     static auto prevClick = std::chrono::steady_clock::time_point();
+
+    const auto now = std::chrono::steady_clock::now();
+    last_mouse_input = now;
 
     if (nCode >= 0 && condorWindowActive == true) {
 
@@ -167,7 +172,7 @@ LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
         else if (wParam == WM_RBUTTONUP) {
             appMouseButtonDown = false;
             SendMouseToBestTarget(hXCSoarWnd, appMousePos, WM_LBUTTONUP, 0);
-            const auto now = std::chrono::steady_clock::now();
+            
             if (now - prevClick < std::chrono::milliseconds(300)) {
                 SendMouseToBestTarget(hXCSoarWnd, appMousePos, WM_LBUTTONDBLCLK, 0);
             }
@@ -229,7 +234,7 @@ bool PDAInject(HDC hPdaDC)
     }
 
     if (pdaOptions.app.pass_input && condorWndProc == NULL) {
-        hCondorWnd = FindWindowA(NULL, "Condor version 3.0.2");
+        hCondorWnd = FindWindowA(NULL, "Condor version 3.0.3");
         if (hCondorWnd != NULL) {
             condorWndProc = reinterpret_cast<WNDPROC>(GetWindowLong(hCondorWnd, GWL_WNDPROC));
             if (condorWndProc != NULL) {
@@ -237,10 +242,17 @@ bool PDAInject(HDC hPdaDC)
                 LoadSettings(pdaOptions, "pda.ini");
             }
         }
+    }
 
-        if (pdaOptions.app.pass_mouse) {
-            hMouseHook = SetWindowsHookEx(WH_MOUSE_LL, MouseProc, NULL, 0);
+    const auto now = std::chrono::steady_clock::now();
+    const auto since_last_mouse_input = now - last_mouse_input;
+
+    if (pdaOptions.app.pass_mouse && since_last_mouse_input >= std::chrono::seconds(30)) {
+        if (hMouseHook != NULL) {
+            UnhookWindowsHookEx(hMouseHook);
         }
+        hMouseHook = SetWindowsHookEx(WH_MOUSE_LL, MouseProc, NULL, 0);
+        last_mouse_input = now;
     }
 
     if (pdaOptions.pda.enabled)
