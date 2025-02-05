@@ -227,7 +227,7 @@ LRESULT CALLBACK CaptureWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPara
     return CallWindowProc(condorWndProc, hWnd, msg, wParam, lParam);
 }
 
-bool PDAInject(HDC hPdaDC)
+bool PDAInject(HDC hPdaDC, int page)
 {
     if (hPdaDC == NULL) {
         return false;

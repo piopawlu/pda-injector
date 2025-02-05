@@ -58,21 +58,16 @@ typedef int(__stdcall *D3DX11CSRVFFA)(void*, const void*, void*, void*, void*, v
 static D3DX11CSRVFFA addr_D3DX11CreateShaderResourceViewFromFileA = NULL;
 static bool gdi_hooked = false;
 
-bool PDAInject(HDC hdc);
+bool PDAInject(HDC hdc, int page);
 
-static HDC hStoredHDC = NULL;
+
 
 BOOL WINAPI ExtTextOutAOverride(_In_ HDC hdc, _In_ int x, _In_ int y, _In_ UINT options, _In_opt_ CONST RECT* lprect,
 	_In_reads_opt_(c) LPCSTR lpString, _In_ UINT c, _In_reads_opt_(c) CONST INT* lpDx)
 {
+	static HDC hStoredHDC = NULL;
+	static int iStoredPage = -1;
 
-	if (hStoredHDC == hdc)
-	{
-		if (y == 366) {
-			hStoredHDC = NULL;
-		}
-		return TRUE;
-	}
 
 	const auto result = ExtTextOutA(hdc, x, y, options, lprect, lpString, c, lpDx);
 
@@ -80,8 +75,25 @@ BOOL WINAPI ExtTextOutAOverride(_In_ HDC hdc, _In_ int x, _In_ int y, _In_ UINT 
 		return result;
 	}
 
+	if (hStoredHDC == hdc)
+	{
+		if (y == 366 && x >= 180) {
+			PDAInject(hdc, iStoredPage);
+			hStoredHDC = NULL;
+		}
+		return TRUE;
+	}
+
 	if (x == 227 && y == 447 && strncmp(lpString, "ReqE", 4) == 0) {
-		PDAInject(hdc);
+		iStoredPage = 1;
+		hStoredHDC = hdc;
+		return result;
+	} else if (y == 447 && strncmp(lpString, "tDelta", 6) == 0) {
+		iStoredPage = 2;
+		hStoredHDC = hdc;
+		return result;
+	} else if (y == 447 && strncmp(lpString, "TGain", 5) == 0) {
+		iStoredPage = 3;
 		hStoredHDC = hdc;
 		return result;
 	}
