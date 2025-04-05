@@ -172,7 +172,7 @@ LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
         else if (wParam == WM_RBUTTONUP) {
             appMouseButtonDown = false;
             SendMouseToBestTarget(hXCSoarWnd, appMousePos, WM_LBUTTONUP, 0);
-            
+
             if (now - prevClick < std::chrono::milliseconds(300)) {
                 SendMouseToBestTarget(hXCSoarWnd, appMousePos, WM_LBUTTONDBLCLK, 0);
             }
