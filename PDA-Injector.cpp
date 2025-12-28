@@ -234,7 +234,7 @@ bool PDAInject(HDC hPdaDC, int page)
     }
 
     if (pdaOptions.app.pass_input && condorWndProc == NULL) {
-        hCondorWnd = FindWindowA(NULL, "Condor version 3.0.8");
+        hCondorWnd = FindWindowA(NULL, "Condor version 3.0.9");
         if (hCondorWnd != NULL) {
             condorWndProc = reinterpret_cast<WNDPROC>(GetWindowLong(hCondorWnd, GWL_WNDPROC));
             if (condorWndProc != NULL) {
