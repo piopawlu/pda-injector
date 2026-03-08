@@ -107,7 +107,7 @@ void HookGDIFunctions() {
 	//(*(DWORD*)(0x007D3500)) = reinterpret_cast<DWORD>(ExtTextOutAOverride); //condor 3.0.5
 	//(*(DWORD*)(0x007D7500)) = reinterpret_cast<DWORD>(ExtTextOutAOverride); //condor 3.0.6 - 3.0.8
 	//(*(DWORD*)(0x007DB500)) = reinterpret_cast<DWORD>(ExtTextOutAOverride); //condor 3.0.9
-	(*(DWORD*)(0x007DC4F8)) = reinterpret_cast<DWORD>(ExtTextOutAOverride); //condor 3.0.10
+	(*(DWORD*)(0x007DC4F8)) = reinterpret_cast<DWORD>(ExtTextOutAOverride); //condor 3.1.0
 
 	DWORD oldprotect = 0;
 	auto hProc = GetCurrentProcess();
