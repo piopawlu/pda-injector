@@ -1,4 +1,5 @@
 #include "PDA-Injector.h"
+#include "condor_offsets.h"
 
 #include <algorithm>
 #include <atomic>
@@ -266,7 +267,7 @@ namespace joystick {
                                 i, status.buttons[i],
                                 "Press YES to copy the command into clipboard");
 
-                            const auto result = MessageBoxA(FindWindowA(NULL, "Condor version 2.2.0"),
+                            const auto result = MessageBoxA(FindCondorWindow(nullptr, 0),
                                 debug_text.c_str(), "PDA Injector Controller Debug",
                                 MB_ICONINFORMATION | MB_YESNOCANCEL);
 
@@ -288,7 +289,7 @@ namespace joystick {
                                 i, sw,
                                 "Press YES to copy the command into clipboard");
 
-                            const auto result = MessageBoxA(FindWindowA(NULL, "Condor version 2.2.0"),
+                            const auto result = MessageBoxA(FindCondorWindow(nullptr, 0),
                                 debug_text.c_str(), "PDA Injector Controller Debug",
                                 MB_ICONINFORMATION | MB_YESNOCANCEL);
 
