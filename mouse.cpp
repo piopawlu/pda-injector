@@ -1,4 +1,5 @@
 #include "mouse.h"
+#include "PDA-Injector.h"
 
 // SDL2 (XCSoar 7.x) derives the button state from the MK_* flags in wParam, not from
 // the message type: a WM_LBUTTONDOWN without MK_LBUTTON is read as "no button pressed".
@@ -20,8 +21,38 @@ static WPARAM WithButtonFlags(UINT uMsg, WPARAM wParam) {
     }
 }
 
+typedef DPI_AWARENESS_CONTEXT(WINAPI* PFN_SetThreadDpiAwarenessContext)(DPI_AWARENESS_CONTEXT);
+typedef DPI_AWARENESS_CONTEXT(WINAPI* PFN_GetWindowDpiAwarenessContext)(HWND);
+
+static PFN_SetThreadDpiAwarenessContext pSetThreadDpiAwarenessContext = nullptr;
+static PFN_GetWindowDpiAwarenessContext pGetWindowDpiAwarenessContext = nullptr;
+
+static void ResolveDpiFunctions() {
+    static bool resolved = false;
+    if (!resolved) {
+        resolved = true;
+        HMODULE u32 = GetModuleHandleA("user32.dll");
+        if (u32) {
+            pSetThreadDpiAwarenessContext = (PFN_SetThreadDpiAwarenessContext)GetProcAddress(u32, "SetThreadDpiAwarenessContext");
+            pGetWindowDpiAwarenessContext = (PFN_GetWindowDpiAwarenessContext)GetProcAddress(u32, "GetWindowDpiAwarenessContext");
+        }
+    }
+}
+
 bool SendMouseToBestTarget(HWND hParentHWND, const POINT& appMousePos, UINT uMsg, WPARAM wParam) {
     constexpr auto SKIPMASK = CWP_SKIPDISABLED | CWP_SKIPTRANSPARENT | CWP_SKIPINVISIBLE;
+
+    // appMousePos lives in the XC_WIDTH x XC_HEIGHT space of the image shown in the PDA,
+    // which is the XCSoar client area scaled to that size. Map it back to the real client
+    // area, measured in the target's own DPI awareness context: posted coordinates are
+    // not translated, so they must be in the pixels the target works in. On a 150%
+    // display, XCSoar 7.45 (SDL, DPI aware) works in physical pixels (992x1584), XCSoar
+    // 7.43 (GDI, DPI unaware) in logical ones, and Condor itself is DPI unaware.
+    ResolveDpiFunctions();
+    auto pSetDpi = pSetThreadDpiAwarenessContext;
+    DPI_AWARENESS_CONTEXT targetDpiCtx = pGetWindowDpiAwarenessContext
+        ? pGetWindowDpiAwarenessContext(hParentHWND) : DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2;
+    DPI_AWARENESS_CONTEXT prevDpiCtx = pSetDpi ? pSetDpi(targetDpiCtx) : nullptr;
 
     HWND hTargetWnd = hParentHWND;
     POINT adjustedPos = appMousePos;
@@ -30,6 +61,12 @@ bool SendMouseToBestTarget(HWND hParentHWND, const POINT& appMousePos, UINT uMsg
     RECT xcRect;
 
     GetClientRect(hParentHWND, &xcRect);
+    const long width = xcRect.right - xcRect.left;
+    const long height = xcRect.bottom - xcRect.top;
+    if (width > 0 && height > 0) {
+        adjustedPos.x = MulDiv(appMousePos.x, width, XC_WIDTH);
+        adjustedPos.y = MulDiv(appMousePos.y, height, XC_HEIGHT);
+    }
     adjustedPos.x += xcRect.left;
     adjustedPos.y += xcRect.top;
 
@@ -43,5 +80,11 @@ bool SendMouseToBestTarget(HWND hParentHWND, const POINT& appMousePos, UINT uMsg
         hTargetWnd = hTmpWnd;
     } while (hTmpWnd != NULL);
 
-    return PostMessage(hTargetWnd, uMsg, WithButtonFlags(uMsg, wParam), MAKELPARAM(adjustedPos.x, adjustedPos.y));
+    const BOOL posted = PostMessage(hTargetWnd, uMsg, WithButtonFlags(uMsg, wParam), MAKELPARAM(adjustedPos.x, adjustedPos.y));
+
+    if (pSetDpi && prevDpiCtx) {
+        pSetDpi(prevDpiCtx);
+    }
+
+    return posted;
 }
