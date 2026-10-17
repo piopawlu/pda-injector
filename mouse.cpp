@@ -80,7 +80,19 @@ bool SendMouseToBestTarget(HWND hParentHWND, const POINT& appMousePos, UINT uMsg
         hTargetWnd = hTmpWnd;
     } while (hTmpWnd != NULL);
 
-    const BOOL posted = PostMessage(hTargetWnd, uMsg, WithButtonFlags(uMsg, wParam), MAKELPARAM(adjustedPos.x, adjustedPos.y));
+    const LPARAM lParam = MAKELPARAM(adjustedPos.x, adjustedPos.y);
+
+    // SDL2 ignores the coordinates of button messages: a click lands at the position of
+    // the last WM_MOUSEMOVE. Moves are only forwarded while the button is held, so move
+    // the pointer to the click position first, as a real mouse would.
+    if (uMsg != WM_MOUSEMOVE) {
+        WPARAM moveFlags = wParam;
+        if (uMsg == WM_LBUTTONUP) moveFlags |= MK_LBUTTON;
+        if (uMsg == WM_RBUTTONUP) moveFlags |= MK_RBUTTON;
+        PostMessage(hTargetWnd, WM_MOUSEMOVE, moveFlags, lParam);
+    }
+
+    const BOOL posted = PostMessage(hTargetWnd, uMsg, WithButtonFlags(uMsg, wParam), lParam);
 
     if (pSetDpi && prevDpiCtx) {
         pSetDpi(prevDpiCtx);
