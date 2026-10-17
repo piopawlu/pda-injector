@@ -78,9 +78,55 @@ POINT appMousePos = { 0,0 };
 time_t appLastMouseMove = 0;
 bool appMouseButtonDown = false;
 
+// PW_RENDERFULLCONTENT: off-screen rendering that includes GPU content
+// (OpenGL/ANGLE, Chrome, WebView2, DirectComposition). Windows 8.1+. Without
+// it, BitBlt returns black for these windows, because GPU composition is not
+// in the regular DC.
+#ifndef PW_CLIENTONLY
+#define PW_CLIENTONLY 0x00000001
+#endif
+#ifndef PW_RENDERFULLCONTENT
+#define PW_RENDERFULLCONTENT 0x00000002
+#endif
+
+// DPI awareness: SetThreadDpiAwarenessContext exists from Windows 10 1607.
+// Resolved dynamically to stay compatible with older systems.
+#ifndef DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
+#define DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 ((DPI_AWARENESS_CONTEXT)-4)
+#endif
+typedef DPI_AWARENESS_CONTEXT(WINAPI* PFN_SetThreadDpiAwarenessContext)(DPI_AWARENESS_CONTEXT);
+
+static PFN_SetThreadDpiAwarenessContext GetSetThreadDpiAwarenessContext() {
+    static PFN_SetThreadDpiAwarenessContext fn = nullptr;
+    static bool resolved = false;
+    if (!resolved) {
+        resolved = true;
+        HMODULE u32 = GetModuleHandleA("user32.dll");
+        if (u32) fn = (PFN_SetThreadDpiAwarenessContext)GetProcAddress(u32, "SetThreadDpiAwarenessContext");
+    }
+    return fn;
+}
+
 BOOL CopyXCSoarToPDA(HWND hWnd, HDC srcDC, HDC dstDC) {
 
     extern HBITMAP captureBMP;
+
+    // Switch this thread to the target's DPI awareness for the capture.
+    // Condor is DPI unaware: on a scaled display, GetClientRect/PrintWindow
+    // called from its context see a DPI aware target (XCSoar 7.44+ OpenGL,
+    // Chrome PWA) at a virtualized logical size while it renders in physical
+    // pixels, and only the top-left part of the image is captured. A DPI
+    // unaware target (XCSoar GDI) renders at its logical size instead, so
+    // forcing per-monitor awareness would be wrong for it: use the target's
+    // own context.
+    auto pSetDpi = GetSetThreadDpiAwarenessContext();
+    typedef DPI_AWARENESS_CONTEXT(WINAPI* PFN_GetWindowDpiAwarenessContext)(HWND);
+    static auto pGetWindowDpiCtx = (PFN_GetWindowDpiAwarenessContext)GetProcAddress(
+        GetModuleHandleA("user32.dll"), "GetWindowDpiAwarenessContext");
+    DPI_AWARENESS_CONTEXT prevDpiCtx = nullptr;
+    if (pSetDpi) {
+        prevDpiCtx = pSetDpi(pGetWindowDpiCtx ? pGetWindowDpiCtx(hWnd) : DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    }
 
     HDC hTempDC = CreateCompatibleDC(dstDC);
     SelectObject(hTempDC, captureBMP);
@@ -90,7 +136,32 @@ BOOL CopyXCSoarToPDA(HWND hWnd, HDC srcDC, HDC dstDC) {
     const long width = rect.right - rect.left;
     const long height = rect.bottom - rect.top;
 
-    BitBlt(hTempDC, 0, 0, width, height, srcDC, 0, 0, SRCCOPY);
+    // PrintWindow with PW_RENDERFULLCONTENT captures GPU rendering; BitBlt is
+    // the fallback when it fails.
+    //
+    // The source can be larger than XC_WIDTH x XC_HEIGHT (physical pixels of a
+    // DPI aware target, or a target that refuses MoveWindow). captureBMP is
+    // fixed at XC_WIDTH x XC_HEIGHT, so capture first into a bitmap of the
+    // real source size, then StretchBlt it into captureBMP.
+    bool captured = false;
+    if (width > 0 && height > 0 && (width != XC_WIDTH || height != XC_HEIGHT)) {
+        HDC hSrcSizedDC = CreateCompatibleDC(dstDC);
+        HBITMAP hSrcSizedBmp = CreateCompatibleBitmap(dstDC, width, height);
+        HGDIOBJ oldBmp = SelectObject(hSrcSizedDC, hSrcSizedBmp);
+        if (PrintWindow(hWnd, hSrcSizedDC, PW_CLIENTONLY | PW_RENDERFULLCONTENT)) {
+            SetStretchBltMode(hTempDC, HALFTONE);
+            SetBrushOrgEx(hTempDC, 0, 0, NULL);
+            StretchBlt(hTempDC, 0, 0, XC_WIDTH, XC_HEIGHT,
+                       hSrcSizedDC, 0, 0, width, height, SRCCOPY);
+            captured = true;
+        }
+        SelectObject(hSrcSizedDC, oldBmp);
+        DeleteObject(hSrcSizedBmp);
+        DeleteDC(hSrcSizedDC);
+    }
+    if (!captured && !PrintWindow(hWnd, hTempDC, PW_CLIENTONLY | PW_RENDERFULLCONTENT)) {
+        BitBlt(hTempDC, 0, 0, width, height, srcDC, 0, 0, SRCCOPY);
+    }
 
     if ((pdaOptions.app.pass_mouse || pdaOptions.joystick.mouse_enabled) &&
         (time(nullptr) - appLastMouseMove) < 15) {
@@ -106,13 +177,37 @@ BOOL CopyXCSoarToPDA(HWND hWnd, HDC srcDC, HDC dstDC) {
         SwapRedAndBlue(hTempDC, captureBMP);
     }
 
-    const auto result = StretchBlt(dstDC, 0, 0, XC_WIDTH, XC_HEIGHT, hTempDC, 0, 0, width, height, SRCCOPY);
+    // If captured, captureBMP already holds the image scaled to XC_WIDTH x
+    // XC_HEIGHT. Otherwise it holds it at (0,0,width,height), and this
+    // StretchBlt does the scaling.
+    const long srcW = captured ? XC_WIDTH : width;
+    const long srcH = captured ? XC_HEIGHT : height;
+    SetStretchBltMode(dstDC, HALFTONE);
+    SetBrushOrgEx(dstDC, 0, 0, NULL);
+    const auto result = StretchBlt(dstDC, 0, 0, XC_WIDTH, XC_HEIGHT, hTempDC, 0, 0, srcW, srcH, SRCCOPY);
 
-    if (width != XC_WIDTH || height != XC_HEIGHT) {
+    // Restore the thread's DPI context before MoveWindow, which must work in
+    // Condor's logical pixels.
+    if (pSetDpi && prevDpiCtx) {
+        pSetDpi(prevDpiCtx);
+    }
+
+    // Keep the source window at XC_WIDTH x XC_HEIGHT logical pixels, or the PDA image is
+    // stretched. Measured in Condor's DPI unaware context: a DPI aware target such as
+    // XCSoar at 150% then gets 894x1494 physical pixels, the same aspect ratio. Rate
+    // limited, because a target that refuses the size (Chrome PWA) would otherwise get a
+    // MoveWindow on every frame.
+    static auto lastMoveWindow = std::chrono::steady_clock::time_point();
+    const auto now = std::chrono::steady_clock::now();
+    RECT logicalRect;
+    GetClientRect(hWnd, &logicalRect);
+    if ((logicalRect.right != XC_WIDTH || logicalRect.bottom != XC_HEIGHT) &&
+        now - lastMoveWindow >= std::chrono::seconds(2)) {
+        lastMoveWindow = now;
         GetWindowRect(hWnd, &rect);
         MoveWindow(hWnd, rect.left, rect.top,
-            (XC_WIDTH)+(rect.right - rect.left - width),
-            (XC_HEIGHT)+(rect.bottom - rect.top - height), TRUE);
+            (XC_WIDTH)+(rect.right - rect.left - logicalRect.right),
+            (XC_HEIGHT)+(rect.bottom - rect.top - logicalRect.bottom), TRUE);
     }
 
     DeleteDC(hTempDC);
