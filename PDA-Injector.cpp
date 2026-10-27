@@ -221,6 +221,11 @@ LRESULT CALLBACK CaptureWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPara
             UnhookWindowsHookEx(hMouseHook);
         }
 
+        // Condor recreates its window for every flight. The new one is subclassed while
+        // already active, so no WM_ACTIVATE arrives to clear the WA_INACTIVE state left
+        // by this one: restore the initial state, or the mouse stays ignored.
+        condorWindowActive = true;
+
         hCondorWnd = NULL;
         return result;
     }
