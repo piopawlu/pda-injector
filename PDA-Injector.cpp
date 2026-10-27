@@ -21,6 +21,7 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110 - 1301, USA.
 #include "PDA-Injector.h"
 #include "resource.h"
 #include "mouse.h"
+#include "condor_offsets.h"
 
 #include <algorithm>
 #include <array>
@@ -234,7 +235,7 @@ bool PDAInject(HDC hPdaDC, int page)
     }
 
     if (pdaOptions.app.pass_input && condorWndProc == NULL) {
-        hCondorWnd = FindWindowA(NULL, "Condor version 3.1.0");
+        hCondorWnd = FindCondorWindow(nullptr, 0);
         if (hCondorWnd != NULL) {
             condorWndProc = reinterpret_cast<WNDPROC>(GetWindowLong(hCondorWnd, GWL_WNDPROC));
             if (condorWndProc != NULL) {

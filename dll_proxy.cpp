@@ -1,6 +1,7 @@
 #include <Windows.h>
 #include <dxgi.h>
 #include "PDA-Injector.h"
+#include "condor_offsets.h"
 //#include <cstdint>
 
 HMODULE hTrueDX11_43Module = 0;
@@ -102,24 +103,34 @@ BOOL WINAPI ExtTextOutAOverride(_In_ HDC hdc, _In_ int x, _In_ int y, _In_ UINT 
 }
 
 void HookGDIFunctions() {
-	//(*(DWORD*)(0x007D6540)) = reinterpret_cast<DWORD>(ExtTextOutAOverride); //condor 3.0.0
-	//(*(DWORD*)(0x007CE530)) = reinterpret_cast<DWORD>(ExtTextOutAOverride); //condor 3.0.2, 3.0.3
-	//(*(DWORD*)(0x007D3500)) = reinterpret_cast<DWORD>(ExtTextOutAOverride); //condor 3.0.5
-	//(*(DWORD*)(0x007D7500)) = reinterpret_cast<DWORD>(ExtTextOutAOverride); //condor 3.0.6 - 3.0.8
-	//(*(DWORD*)(0x007DB500)) = reinterpret_cast<DWORD>(ExtTextOutAOverride); //condor 3.0.9
-	(*(DWORD*)(0x007DC4F8)) = reinterpret_cast<DWORD>(ExtTextOutAOverride); //condor 3.1.0
+	// Auto-discover offsets at runtime: works for any Condor 3.x version that
+	// preserves the source-level "double PDA texture" function shape (validated
+	// on 3.0.9 and 3.1.0). Falls back to condor-offsets.ini override if scan fails.
+	CondorOffsets off;
+	if (!DiscoverCondorOffsets(off)) {
+		// Fail-safe: log and disable PDA hack rather than crash on unknown version
+		MessageBoxA(nullptr,
+			"PDA-Injector: failed to auto-detect Condor offsets.\n"
+			"PDA injection disabled. See condor-offsets.log for details, or\n"
+			"provide condor-offsets.ini override next to Condor.exe.",
+			"PDA-Injector", MB_OK | MB_ICONWARNING);
+		return;
+	}
 
-	DWORD oldprotect = 0;
 	auto hProc = GetCurrentProcess();
+	DWORD oldprotect = 0;
 
-	// double the PDA texture size
-	char* BASE_ADDR = reinterpret_cast<char*>(0x00736C00);
-	VirtualProtectEx(hProc, BASE_ADDR, 0x200, PAGE_EXECUTE_READWRITE, &oldprotect);
-	reinterpret_cast<uint32_t*>(BASE_ADDR + 0x96 + 1)[0] *= 2;
-	reinterpret_cast<uint32_t*>(BASE_ADDR + 0xAA + 1)[0] *= 2;
-	reinterpret_cast<uint32_t*>(BASE_ADDR + 0xB9 + 1)[0] *= 2;
-	reinterpret_cast<uint32_t*>(BASE_ADDR + 0xBE + 1)[0] *= 2;
-	VirtualProtectEx(hProc, BASE_ADDR, 0x200, oldprotect, &oldprotect);
+	// 1) Hook gdi32!ExtTextOutA via IAT patching
+	VirtualProtectEx(hProc, off.iat_ext_text_out, sizeof(DWORD), PAGE_READWRITE, &oldprotect);
+	*off.iat_ext_text_out = reinterpret_cast<DWORD>(ExtTextOutAOverride);
+	VirtualProtectEx(hProc, off.iat_ext_text_out, sizeof(DWORD), oldprotect, &oldprotect);
+
+	// 2) Double the 4 PDA texture-size immediates (298->596, 498->996)
+	for (int i = 0; i < 4; ++i) {
+		VirtualProtectEx(hProc, off.immediates[i], sizeof(uint32_t), PAGE_EXECUTE_READWRITE, &oldprotect);
+		off.immediates[i][0] *= 2;
+		VirtualProtectEx(hProc, off.immediates[i], sizeof(uint32_t), oldprotect, &oldprotect);
+	}
 }
 
 HRESULT WINAPI D3DX11CreateShaderResourceViewFromFileA(

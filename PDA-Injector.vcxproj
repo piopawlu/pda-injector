@@ -177,12 +177,14 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="condor_offsets.h" />
     <ClInclude Include="joystick.h" />
     <ClInclude Include="mouse.h" />
     <ClInclude Include="PDA-Injector.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="condor_offsets.cpp" />
     <ClCompile Include="joystick.cpp" />
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="fmt\src\format.cc" />
